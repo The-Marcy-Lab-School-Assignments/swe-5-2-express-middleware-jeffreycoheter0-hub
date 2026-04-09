@@ -1,4 +1,5 @@
 const express = require('express');
+const { get } = require('http');
 const path = require('path');
 
 const app = express();
@@ -21,34 +22,65 @@ const quotes = [
 // TODO: Define middleware here
 
 // 1. logRoutes — logs the HTTP method, URL, and timestamp for every request, then calls next()
+// Middleware function for logging route requests
+const logRoutes = (req, res, next) => {
+  const time = new Date().toLocaleString();
+  console.log(`${req.method}: ${req.originalUrl} - ${time}`);
+  next(); // Passes the request to the next middleware/controller
+};
+// Register the logRoutes middleware globally to log all requests
+app.use(logRoutes);
+
+// Other endpoints and controllers
 
 // 2. express.static() — generates middleware that serves files from the frontend/ folder
 //    Use path.join(__dirname, '../frontend') to construct the absolute path
 
 // TODO: Register middleware with app.use() before the controllers
-
-
+const pathToFrontend = path.join(__dirname, '../frontend');
+const serveStatic = express.static(pathToFrontend);
+app.use(serveStatic);
 
 // TODO: Define controllers here
 
 // listQuotes — sends all quotes as JSON
 //   If the request includes a ?topic= query string, send only quotes with a matching topic
+const listQuotes = (req, res, next) => {
+  const topic = req.query.topic;
+  if (topic) {
+    const topicMatching = quotes.filter(quote => quote.topic === topic);
+    return res.send(topicMatching);
+  } else {
+    res.send(quotes);
+  }
+};
 
 // getQuote — sends a single quote whose id matches req.params.id
 //   If no matching quote is found, respond with 404 and { error: 'No quote with id <id>' }
+const getQuote = (req, res, next) => {
+  const id = Number(req.params.id)
 
+  const foundQuote = quotes.find(quote => quote.id === id);
+  if (!foundQuote) {
+    return res.status(404).send({ error: `Quote ${req.params.id} not found` });
+  }
+  res.send(foundQuote);
+};
 
 
 // TODO: Register endpoints here
 
 // GET /api/quotes
 // GET /api/quotes/:id
-
+app.get('/api/quotes', listQuotes);
+app.get('/api/quotes/:id', getQuote);
 
 
 // TODO: Add a catch-all fallback that responds with 404 and { error: 'Not found: <url>' }
 // Use app.use() and place it after all other routes
-
+app.use((req, res) => {
+  res.status(404).send({ error: `Not found: ${req.originalUrl}` });
+});
 
 
 app.listen(port, () => {
